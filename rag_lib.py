@@ -6,6 +6,10 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.document_loaders import PyPDFLoader
 from langchain.llms.bedrock import Bedrock
 
+from langchain.chains import ConversationChain
+from langchain.memory import ConversationBufferMemory
+
+
 
 def get_llm():
     
@@ -39,7 +43,7 @@ def get_index(): #creates and returns an in-memory vector store to be used in th
         # endpoint_url=os.environ.get("BWB_ENDPOINT_URL"), #sets the endpoint URL (if necessary)
     ) #create a Titan Embeddings client
     
-    pdf_path = "yr6_science_curriculum.pdf" #assumes local PDF file with this name
+    pdf_path = "Text_Book_for_Year_6_Science_Knowledge.pdf" #assumes local PDF file with this name
 
     loader = PyPDFLoader(file_path=pdf_path) #load the pdf file
     
@@ -56,14 +60,56 @@ def get_index(): #creates and returns an in-memory vector store to be used in th
     )
     
     index_from_loader = index_creator.from_loaders([loader]) #create an vector store index from the loaded PDF
+
     
     return index_from_loader #return the index to be cached by the client app
 
+def get_rag_response2(question): #rag client function
+    llm = get_llm()
+
+    conversation = ConversationChain(
+        llm=llm, verbose=True, memory=ConversationBufferMemory()
+    )
+
+    predicted_text = conversation.predict(input="Hi there!")
+    
+    # response_text = index.query(question=question, llm=llm) #search against the in-memory index, stuff results into a prompt and send to the llm
+    
+    print(predicted_text)
+
+    return predicted_text
 
 def get_rag_response(index, question): #rag client function
-    
     llm = get_llm()
-    
+
+
+    # result = index.query_index(question=question, llm=llm) #search against the in-memory index, stuff results into a prompt and send to the llm
+    # print(result)
     response_text = index.query(question=question, llm=llm) #search against the in-memory index, stuff results into a prompt and send to the llm
-    
+    print(response_text)
+
     return response_text
+
+def get_custom_response(temp_answer):
+    llm = get_llm()
+
+    conversation = ConversationChain(
+        llm=llm, verbose=True, memory=ConversationBufferMemory()
+    )
+
+    student = """Ethan, 13, Sydney, Australia
+   - Background: Ethan comes from a tech-savvy family in the suburbs of Sydney. His parents are software engineers.
+   - School Performance: Strong in Mathematics and Science; moderate in Humanities.
+   - Interests: Robotics, Coding, Chess, Science Fiction Novels, Astronomy.
+   - Skill Level: Advanced in Robotics and Coding; participates in regional competitions.
+"""
+
+    new_question = f"Please modify the answer: {temp_answer} so it is personalised to {student}.\n Make a relevant analogy that the student would understand. Begin your answer with 'Think about it like: '"
+
+    personal_answer = conversation.predict(input=new_question)
+
+    return personal_answer
+
+
+
+# Prompt them to think more rather than just giving them the answer

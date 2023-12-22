@@ -9,7 +9,7 @@ st.title("Retrieval-Augmented Generation") #page title
 
 if 'vector_index' not in st.session_state: #see if the vector index hasn't been created yet
     with st.spinner("Indexing document..."): #show a spinner while the code in this with block runs
-        st.session_state.vector_index = glib.get_index() #retrieve the index through the supporting library and store in the app's session cache
+        st.session_state.vector_index = glib.get_index() #retri eve the index through the supporting library and store in the app's session cache
 
 
 
@@ -22,6 +22,9 @@ if go_button: #code in this if block will be run when the button is clicked
     
     with st.spinner("Working..."): #show a spinner while the code in this with block runs
         response_content = glib.get_rag_response(index=st.session_state.vector_index, question=input_text) #call the model through the supporting library
-        
-        st.write(response_content) #display the response content
+        st.write(response_content)
+        personalised_content = glib.get_custom_response(temp_answer=response_content)
+        st.write(personalised_content)
+        # response_content = glib.get_rag_response2(question=input_text)
+        # st.write(response_content) #display the response content
         

@@ -90,21 +90,14 @@ def get_rag_response(index, question): #rag client function
 
     return response_text
 
-def get_custom_response(temp_answer):
+def get_custom_response(temp_answer, student_info):
     llm = get_llm()
 
     conversation = ConversationChain(
         llm=llm, verbose=True, memory=ConversationBufferMemory()
     )
 
-    student = """Ethan, 13, Sydney, Australia
-   - Background: Ethan comes from a tech-savvy family in the suburbs of Sydney. His parents are software engineers.
-   - School Performance: Strong in Mathematics and Science; moderate in Humanities.
-   - Interests: Robotics, Coding, Chess, Science Fiction Novels, Astronomy.
-   - Skill Level: Advanced in Robotics and Coding; participates in regional competitions.
-"""
-
-    new_question = f"Please modify the answer: {temp_answer} so it is personalised to {student}.\n Make a relevant analogy that the student would understand. Begin your answer with 'Think about it like: '"
+    new_question = f"Please modify the answer: {temp_answer} so it is personalised to {student_info}.\n Make a relevant analogy that the student would understand. Begin your answer with 'Think about it like: '"
 
     personal_answer = conversation.predict(input=new_question)
 

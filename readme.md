@@ -1,5 +1,6 @@
 # AWS Bedrock Hackathon Project
 
+This project was created to provide student specific assistance on their current lesson using the Australian curriculum.
 
 ### To Run:
 python3 -m venv .venv  

@@ -6,6 +6,9 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.document_loaders import PyPDFLoader
 from langchain.llms.bedrock import Bedrock
 
+from langchain.text_splitter import CharacterTextSplitter
+from langchain.vectorstores import Chroma
+
 from langchain.chains import ConversationChain
 from langchain.memory import ConversationBufferMemory
 
@@ -15,7 +18,7 @@ def get_llm():
     
     model_kwargs = { #AI21
         "maxTokens": 1024, 
-        "temperature": 0, 
+        "temperature": 0,
         "topP": 0.5, 
         "stopSequences": [], 
         "countPenalty": {"scale": 0 }, 
@@ -46,23 +49,36 @@ def get_index(): #creates and returns an in-memory vector store to be used in th
     pdf_path = "Text_Book_for_Year_6_Science_Knowledge.pdf" #assumes local PDF file with this name
 
     loader = PyPDFLoader(file_path=pdf_path) #load the pdf file
-    
-    text_splitter = RecursiveCharacterTextSplitter( #create a text splitter
-        separators=["\n\n", "\n", ".", " "], #split chunks at (1) paragraph, (2) line, (3) sentence, or (4) word, in that order
-        chunk_size=1000, #divide into 1000-character chunks using the separators above
-        chunk_overlap=100 #number of characters that can overlap with previous chunk
-    )
-    
-    index_creator = VectorstoreIndexCreator( #create a vector store factory
-        vectorstore_cls=FAISS, #use an in-memory vector store for demo purposes
-        embedding=embeddings, #use Titan embeddings
-        text_splitter=text_splitter, #use the recursive text splitter
-    )
-    
-    index_from_loader = index_creator.from_loaders([loader]) #create an vector store index from the loaded PDF
+    documents = loader.load()
+
+
+    text_splitter = CharacterTextSplitter(chunk_size=200, chunk_overlap=50)
+    docs = text_splitter.split_documents(documents)
+
+    # load it into Chroma
+    db = Chroma.from_documents(docs, embeddings)
+
 
     
-    return index_from_loader #return the index to be cached by the client app
+    # text_splitter = RecursiveCharacterTextSplitter( #create a text splitter
+    #     separators=["\n\n", "\n", ".", " "], #split chunks at (1) paragraph, (2) line, (3) sentence, or (4) word, in that order
+    #     chunk_size=1000, #divide into 1000-character chunks using the separators above
+    #     chunk_overlap=100 #number of characters that can overlap with previous chunk
+    # )
+    
+    # index_creator = VectorstoreIndexCreator( #create a vector store factory
+    #     vectorstore_cls=FAISS, #use an in-memory vector store for demo purposes
+    #     embedding=embeddings, #use Titan embeddings
+    #     text_splitter=text_splitter, #use the recursive text splitter
+    # )
+    
+    # index_from_loader = index_creator.from_loaders([loader]) #create an vector store index from the loaded PDF
+
+    # print(index_from_loader)
+    # print(type(index_from_loader))
+    # # print(index_from_loader.similaritySearch("Black holes", 2))
+
+    return db #return the index to be cached by the client app
 
 def get_rag_response2(question): #rag client function
     llm = get_llm()
@@ -82,24 +98,41 @@ def get_rag_response2(question): #rag client function
 def get_rag_response(index, question): #rag client function
     llm = get_llm()
 
+    docs = index.similarity_search(question)
 
-    # result = index.query_index(question=question, llm=llm) #search against the in-memory index, stuff results into a prompt and send to the llm
-    # print(result)
-    response_text = index.query(question=question, llm=llm) #search against the in-memory index, stuff results into a prompt and send to the llm
-    print(response_text)
+    # print results
+    print(docs[0].page_content)
 
-    return response_text
 
-def get_custom_response(temp_answer, student_info):
+    # # result = index.query_index(question=question, llm=llm) #search against the in-memory index, stuff results into a prompt and send to the llm
+    # # print(result)
+    # response_text = index.query(question=question, llm=llm) #search against the in-memory index, stuff results into a prompt and send to the llm
+    # # print(response_text)
+    # response_text2 = index.query_with_sources(question=question, llm=llm) #search against the in-memory index, stuff results into a prompt and send to the llm
+    # print(response_text2)
+    return str(docs[0].page_content)
+
+def get_custom_response(question, content, student_info):
     llm = get_llm()
 
     conversation = ConversationChain(
         llm=llm, verbose=True, memory=ConversationBufferMemory()
     )
 
-    new_question = f"Please modify the answer: {temp_answer} so it is personalised to {student_info}.\n Make a relevant analogy that the student would understand. Begin your answer with 'Think about it like: '"
+    new_question2 = f"""
+Student Profile:
+{student_info}\n\n
+Content:
+{content}\n\n
 
-    personal_answer = conversation.predict(input=new_question)
+Instructions: Answer the question: {question}
+Ensure you Help the Student to understand the basic concept of the content above in a way that relates to their world and interests.
+Always create a link between the topic and the student's interests and skills. Make the answer personal to the student by utilising relevant analogies. Weave it into a coherent narrative utilising a natural writing style.
+"""
+
+    # new_question = f"Please modify the answer: {temp_answer} so it is personalised to {student_info}.\n Make a relevant analogy that the student would understand. Begin your answer with 'Think about it like: '"
+
+    personal_answer = conversation.predict(input=new_question2)
 
     return personal_answer
 
